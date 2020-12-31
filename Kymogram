@@ -1,0 +1,179 @@
+/*  This macro creates a static and/or dynamic kymogram of an object of interest from a stack or hyperstack.
+ *  
+ *  Macro Instructions:
+ *  Open movie and run the Macro. Using the rectangle tool (already selected by macro) select the object or part of the object you would like to survey. 
+ *  The user created rectangle (ROI) will be used to define the width and height of "sampling".
+ *  If dynamic is selected, the macro will ask the user to draw a line (macro selects line tool for user). 
+ *  The macro then uses the line to define the start and end point of the object as well as the interval to move the sampling region.
+ *  It will then generate 2 images, 1 were only the sampling region moves left/right (moving x) and another were it moves down/up (moving y).
+ *  
+ * Macro tested with ImageJ 1.53c, Java 1.8.0_162 (64bit) Windows 10
+ * Macro by Johnny Gan Chong email:behappyftw@g.ucla.edu 
+ * December2020
+ */
+
+setOption("ExpandableArrays", true);//set arrays to be exapandable
+
+//get image properties
+imageID = getImageID();
+image = getTitle();
+bitdep = bitDepth(); //get bitdepth for image creation
+
+//renames the bit rate to the correct definition by ImageJ
+if (bitdep == 24) {	
+	bitdep = "RGB";
+}
+else {
+	bitdep=bitdep+"-bit";
+}
+
+//check if hyperstack
+isHyper = Stack.isHyperstack;
+
+//get image properties
+Stack.getDimensions(image_width, image_height, channels, slices, frames);
+
+
+//Error messages if not a movie
+if (frames<2) {
+	exit("Movie must have more than 1 frame.");
+}
+
+
+
+//create option panel
+Dialog.create("Options");
+Dialog.addMessage("Which Kymograph would you like?");
+Dialog.addCheckbox("Static", false);
+Dialog.addCheckbox("Dynamic", false);
+Dialog.show();
+
+//get option panel values
+static_option  = Dialog.getCheckbox();
+dynamic_option = Dialog.getCheckbox();
+
+
+
+//wait for user to create rectangle
+setTool("rectangle");
+selectImage(imageID);
+waitForUser("Create rectangle over area of interest and then press OK");
+Roi.getBounds(x, y, width, height);
+run("Select None");
+
+//wait for user to create line
+if (dynamic_option == true) {
+	setTool("line");
+	selectImage(imageID);
+	waitForUser("Create a line from the start to end point of object and then press OK");
+	getLine(x1, y1, x2, y2, lineWidth); //get line positions
+	run("Select None");
+
+	xinterval = (x2-x1)/frames;
+	yinterval = (y2-y1)/frames;
+}
+
+else {
+	xinterval = 0;
+	yinterval = 0;
+}
+
+
+
+
+
+
+
+setBatchMode(true);
+setBatchMode("hide");
+
+//Static
+if (static_option == true) {
+
+	kymo("Static",0,0,1,0);
+}
+
+
+//Dynamic
+if (dynamic_option == true) {
+
+	//horizontal
+	kymo("Dynamic_Moving_X",1,0,1,0);
+
+	//Vertical
+	kymo("Dynamic_Moving_Y",0,1,0,1);
+
+
+	
+}
+
+setBatchMode("exit and display");
+selectImage(image);
+makeRectangle(x, y, width, height);
+setTool("rectangle");
+
+function kymo(orientation,Xoribool,Yoribool,hori,vert) {
+	
+	horizontal_size = width*frames;
+
+
+	newImage(orientation, bitdep+" composite-mode", horizontal_size, height, channels, slices, 1);
+	if (vert==1) {
+		run("Rotate 90 Degrees Right");
+	}
+	for (c = 1; c <=channels; c++) {
+	
+		if (channels>1) {
+	
+		selectImage(image);
+		Stack.setChannel(c);
+		selectImage(orientation);
+		Stack.setChannel(c);
+		}	
+		Dynamic();
+	}
+}
+
+
+
+
+function Dynamic(){
+		
+	for (f = 1; f <=frames; f++) {
+		XnewLoc = 0+((f-1)*width*hori);
+		YnewLoc = 0+((f-1)*height*vert);
+
+		oriNewX = x+(xinterval*f*Xoribool);
+		oriNewY = y+(yinterval*f*Yoribool);
+		if (isHyper==1) {
+			
+			for (s = 1; s <= slices; s++) {
+
+				selectImage(image);
+				Stack.setFrame(f);
+				Stack.setSlice(s);
+				makeRectangle(oriNewX, oriNewY, width, height);
+				run("Copy");
+				
+				selectImage(orientation);
+				Stack.setSlice(s);
+				makeRectangle(XnewLoc, YnewLoc, width, height);
+				run("Paste");
+			
+			}
+		}
+		
+		else {
+			selectImage(image);		
+			Stack.setFrame(f);
+			makeRectangle(oriNewX, oriNewY, width, height);
+			run("Copy");
+			
+			selectImage(orientation);
+			makeRectangle(XnewLoc, YnewLoc, width, height);
+			run("Paste");
+		}
+		
+		
+	}
+}
