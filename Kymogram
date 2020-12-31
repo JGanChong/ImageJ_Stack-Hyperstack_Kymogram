@@ -1,4 +1,4 @@
-/*  This macro creates a static and/or dynamic kymogram of an object of interest from a stack or hyperstack.
+/*  This macro creates a static and/or dynamic kymogram of an object of interest from a stack or hyperstack while retaining z-dimension.
  *  
  *  Macro Instructions:
  *  Open movie and run the Macro. Using the rectangle tool (already selected by macro) select the object or part of the object you would like to survey. 
